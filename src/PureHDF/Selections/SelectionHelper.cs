@@ -38,9 +38,9 @@ internal readonly record struct RelativeStep(
 internal static class SelectionHelper
 {
     public static IEnumerable<RelativeStep> Walk(
-        int rank, 
-        ulong[] dims, 
-        ulong[] chunkDims, 
+        int rank,
+        ulong[] dims,
+        ulong[] chunkDims,
         Selection selection,
         bool allowBulkCopy
     )
@@ -162,17 +162,17 @@ internal static class SelectionHelper
 
         /* walkers */
         var sourceWalker = Walk(
-            sourceRank, 
-            encodeInfo.SourceDims, 
-            encodeInfo.SourceChunkDims, 
+            sourceRank,
+            encodeInfo.SourceDims,
+            encodeInfo.SourceChunkDims,
             encodeInfo.SourceSelection,
             encodeInfo.AllowBulkCopy
         ).GetEnumerator();
 
         var targetWalker = Walk(
-            targetRank, 
-            encodeInfo.TargetDims, 
-            encodeInfo.TargetChunkDims, 
+            targetRank,
+            encodeInfo.TargetDims,
+            encodeInfo.TargetChunkDims,
             encodeInfo.TargetSelection,
             encodeInfo.AllowBulkCopy
         ).GetEnumerator();
@@ -208,7 +208,7 @@ internal static class SelectionHelper
                 lastTargetChunkIndex = targetStep.ChunkIndex;
             }
 
-            var currentOffset = (int)targetStep.Offset;
+            var currentOffset = (long)targetStep.Offset;
             var currentLength = (int)targetStep.Length;
 
             while (currentLength > 0)
@@ -270,17 +270,17 @@ internal static class SelectionHelper
 
         /* walkers */
         var sourceWalker = Walk(
-            sourceRank, 
-            decodeInfo.SourceDims, 
-            decodeInfo.SourceChunkDims, 
+            sourceRank,
+            decodeInfo.SourceDims,
+            decodeInfo.SourceChunkDims,
             decodeInfo.SourceSelection,
             decodeInfo.AllowBulkCopy
         ).GetEnumerator();
 
         var targetWalker = Walk(
-            targetRank, 
-            decodeInfo.TargetDims, 
-            decodeInfo.TargetChunkDims, 
+            targetRank,
+            decodeInfo.TargetDims,
+            decodeInfo.TargetChunkDims,
             decodeInfo.TargetSelection,
             decodeInfo.AllowBulkCopy
         ).GetEnumerator();
@@ -341,7 +341,14 @@ internal static class SelectionHelper
 
                 if (virtualDatasetStream is null)
                 {
-                    sourceStream.Seek(currentOffset * decodeInfo.SourceTypeSize, SeekOrigin.Begin);
+                    // TODO: I think we need to do a looped seek here where we do a relative seek until we have gotten to
+                    // where we want instead of an aboslute seek where currentOffset * decodeInfo.SourceTypeSize overflows the `long` type.
+                    //sourceStream.Seek(currentOffset * decodeInfo.SourceTypeSize, SeekOrigin.Begin);
+                    sourceStream.Seek(0, SeekOrigin.Begin);
+                    for (int i=1; i<=decodeInfo.SourceTypeSize; i++)
+                    {
+                        sourceStream.Seek(currentOffset, SeekOrigin.Current);
+                    }
 
                     decodeInfo.Decoder(
                         sourceStream,
