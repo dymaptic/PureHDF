@@ -289,6 +289,19 @@ internal static class SelectionHelper
         DecodeStream(sourceWalker, targetWalker, decodeInfo, targetBuffer);
     }
 
+    private static void SeekTo(IH5ReadStream stream, ulong position)
+    {
+        int fullChunks = (int)(position / int.MaxValue);
+
+        for (int i = 0; i < fullChunks; i++)
+        {
+            stream.Seek(int.MaxValue, SeekOrigin.Current);
+        }
+
+        int remainder = (int)(position % int.MaxValue);
+        stream.Seek(remainder, SeekOrigin.Current);
+    }
+
     private static void DecodeStream<TResult>(
         IEnumerator<RelativeStep> sourceWalker,
         IEnumerator<RelativeStep> targetWalker,
@@ -316,7 +329,7 @@ internal static class SelectionHelper
             }
 
             var virtualDatasetStream = sourceStream as VirtualDatasetStream<TResult>;
-            var currentOffset = (int)sourceStep.Offset;
+            var currentOffset = sourceStep.Offset;
             var currentLength = (int)sourceStep.Length;
 
             while (currentLength > 0)
@@ -347,7 +360,8 @@ internal static class SelectionHelper
                     sourceStream.Seek(0, SeekOrigin.Begin);
                     for (int i=1; i<=decodeInfo.SourceTypeSize; i++)
                     {
-                        sourceStream.Seek(currentOffset, SeekOrigin.Current);
+                        SeekTo(sourceStream, currentOffset);
+                        //sourceStream.Seek(currentOffset, SeekOrigin.Current);
                     }
 
                     decodeInfo.Decoder(
@@ -357,13 +371,15 @@ internal static class SelectionHelper
 
                 else
                 {
-                    virtualDatasetStream.Seek(currentOffset, SeekOrigin.Begin);
+                    virtualDatasetStream.Seek(0, SeekOrigin.Begin);
+                    //virtualDatasetStream.Seek(currentOffset, SeekOrigin.Begin);
+                    SeekTo(virtualDatasetStream, currentOffset);
 
                     virtualDatasetStream.ReadVirtual(
                         currentTarget[..targetLength]);
                 }
 
-                currentOffset += length;
+                currentOffset += (ulong)length;
                 currentLength -= length;
                 currentTarget = currentTarget[targetLength..];
             }
